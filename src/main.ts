@@ -48,7 +48,8 @@ export default class TermuxBridgePlugin extends Plugin {
 				method: 'POST',
 				body: command,
 				headers: {
-					'Content-Type': 'text/plain'
+					'Content-Type': 'text/plain',
+					'Authorization': this.settings.serverToken
 				}
 			});
 
@@ -88,7 +89,8 @@ export default class TermuxBridgePlugin extends Plugin {
 				method: 'POST',
 				body: testCommand,
 				headers: {
-					'Content-Type': 'text/plain'
+					'Content-Type': 'text/plain',
+					'Authorization': this.settings.serverToken
 				}
 			});
 
