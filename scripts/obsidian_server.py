@@ -1,6 +1,7 @@
 import http.server
 import subprocess
 import os
+import secrets
 
 PORT = 8085
 TOKEN_FILE = os.path.expanduser("~/.obsidian_termux_token")
@@ -17,14 +18,37 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
         server_token = get_token()
         client_token = self.headers.get('Authorization')
 
+        if not server_token:
+            self.send_response(500)
+            self.end_headers()
+            self.wfile.write(b"Server Error: Token missing")
+            return
+        
         if server_token and client_token != server_token:
             self.send_response(401)
             self.end_headers()
             self.wfile.write(b"Unauthorized: Invalid Token")
             return
         
+        if client_token.startswith("Bearer "):
+            client_token = client_token.split(" ")[1]
+        else:
+            client_token = client_token
+
+        if not secrets.compare_digest(client_token, server_token):
+            self.send_response(401)
+            self.end_headers()
+            self.wfile.write(b"Unauthorized: Invalid Token")
+            return
+        
         # 1. Read the command from the request body
-        content_length = int(self.headers['Content-Length'])
+        try:
+            content_length = int(self.headers['Content-Length'])
+        except (ValueError, TypeError):
+            self.send_response(400)
+            self.end_headers()
+            self.wfile.write(b"Bad Request")
+            return
         command = self.rfile.read(content_length).decode('utf-8')
         
         print(f"Executing: {command}")
@@ -61,7 +85,8 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
 
 print(f"Obsidian Bridge running on port {PORT}...")
 if not get_token():
-    print("WARNING: No token file found at ~/.obsidian_termux_token. Authentication disabled (NOT SECURE).")
+    print("CRITICAL: No token found. Requests will fail (500 Error).")
+    print("Run the install script to generate a token.")
 else:
     print("Authentication enabled.")
 
