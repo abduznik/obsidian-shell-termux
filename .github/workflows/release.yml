@@ -1,8 +1,8 @@
 name: Manual Release
 
+name: Manual Release
+
 on:
-  push:
-    branches: [ main, Add-Security-Layers, Custom-Auto-Release ]
   workflow_dispatch:
     inputs:
       tag_name:
@@ -37,10 +37,10 @@ jobs:
       id: create_release
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ github.event.inputs.tag_name || format('v-test-{0}', github.sha) }}
-        name: ${{ github.event.inputs.release_name || format('Test Release {0}', github.sha) }}
+        tag_name: ${{ github.event.inputs.tag_name }}
+        name: ${{ github.event.inputs.release_name || github.event.inputs.tag_name }}
         draft: false
-        prerelease: true
+        prerelease: false
         files: |
           main.js
           manifest.json
