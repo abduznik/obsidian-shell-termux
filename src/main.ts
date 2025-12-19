@@ -1,95 +1,114 @@
-import {App, Editor, MarkdownView, Modal, Notice, Plugin} from 'obsidian';
-import {DEFAULT_SETTINGS, MyPluginSettings, SampleSettingTab} from "./settings";
+import { App, Editor, MarkdownView, Modal, Notice, Platform, Plugin, Setting, requestUrl } from 'obsidian';
+import { DEFAULT_SETTINGS, TermuxBridgeSettings, TermuxBridgeSettingTab } from "./settings";
 
-// Remember to rename these classes and interfaces!
-
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+export default class TermuxBridgePlugin extends Plugin {
+	settings: TermuxBridgeSettings;
 
 	async onload() {
 		await this.loadSettings();
 
-		// This creates an icon in the left ribbon.
-		this.addRibbonIcon('dice', 'Sample', (evt: MouseEvent) => {
-			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
-		});
+		this.addSettingTab(new TermuxBridgeSettingTab(this.app, this));
 
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status bar text');
-
-		// This adds a simple command that can be triggered anywhere
 		this.addCommand({
-			id: 'open-modal-simple',
-			name: 'Open modal (simple)',
+			id: 'run-termux-command',
+			name: 'Run Termux Command',
 			callback: () => {
-				new SampleModal(this.app).open();
+				new TermuxCommandModal(this.app, this, false).open();
 			}
 		});
-		// This adds an editor command that can perform some operation on the current editor instance
+
 		this.addCommand({
-			id: 'replace-selected',
-			name: 'Replace selected content',
+			id: 'run-termux-command-paste',
+			name: 'Run Termux Command and Paste Output',
 			editorCallback: (editor: Editor, view: MarkdownView) => {
-				editor.replaceSelection('Sample editor command');
+				new TermuxCommandModal(this.app, this, true, editor).open();
 			}
 		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
-		this.addCommand({
-			id: 'open-modal-complex',
-			name: 'Open modal (complex)',
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new SampleModal(this.app).open();
-					}
-
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
-				}
-				return false;
-			}
-		});
-
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
-
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			new Notice("Click");
-		});
-
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
-
-	}
-
-	onunload() {
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<MyPluginSettings>);
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<TermuxBridgeSettings>);
 	}
 
 	async saveSettings() {
 		await this.saveData(this.settings);
 	}
+
+	async executeCommand(command: string, pasteBack: boolean) {
+		const port = this.settings.serverPort;
+		const url = `http://127.0.0.1:${port}/`;
+
+		new Notice(`Sending to Termux (Port ${port})...`);
+
+		try {
+			// using requestUrl from Obsidian API to avoid CORS issues if any (though localhost is usually fine)
+			// Sending a POST request with the command as the body
+			const response = await requestUrl({
+				url: url,
+				method: 'POST',
+				body: command,
+				headers: {
+					'Content-Type': 'text/plain'
+				}
+			});
+
+			const output = response.text;
+			console.log("Termux Output:", output);
+
+			if (pasteBack) {
+				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+				if (view) {
+					view.editor.replaceSelection(output);
+					new Notice('Output pasted!');
+				} else {
+					// Fallback if no editor focused
+					await navigator.clipboard.writeText(output);
+					new Notice('Output copied to clipboard');
+				}
+			} else {
+				new Notice('Command executed successfully');
+			}
+
+		} catch (err) {
+			console.error(err);
+			new Notice(`Failed to connect to Termux on port ${port}. Is the server running?`);
+		}
+	}
 }
 
-class SampleModal extends Modal {
-	constructor(app: App) {
+class TermuxCommandModal extends Modal {
+	plugin: TermuxBridgePlugin;
+	command: string;
+	pasteBack: boolean;
+
+	constructor(app: App, plugin: TermuxBridgePlugin, pasteBack: boolean, editor?: Editor) {
 		super(app);
+		this.plugin = plugin;
+		this.command = '';
+		this.pasteBack = pasteBack;
 	}
 
 	onOpen() {
-		let {contentEl} = this;
-		contentEl.setText('Woah!');
+		const {contentEl} = this;
+		contentEl.createEl('h2', {text: this.pasteBack ? 'Run & Paste Output' : 'Run Termux Command'});
+		contentEl.createEl('p', {text: 'Make sure your Python server is running in Termux.'});
+
+		new Setting(contentEl)
+			.setName('Command')
+			.addText(text => text
+				.setPlaceholder('ls -la')
+				.onChange(value => {
+					this.command = value;
+				}));
+
+		new Setting(contentEl)
+			.addButton(btn => btn
+				.setButtonText('Run')
+				.setCta()
+				.onClick(() => {
+					this.plugin.executeCommand(this.command, this.pasteBack);
+					this.close();
+				}));
 	}
 
 	onClose() {
