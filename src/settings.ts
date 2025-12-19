@@ -9,65 +9,7 @@ export const DEFAULT_SETTINGS: TermuxBridgeSettings = {
 	serverPort: '8085'
 }
 
-// The Python Server Script
-const SERVER_SCRIPT = `import http.server
-import subprocess
-import os
-import sys
-
-# Configuration
-PORT = 8085
-
-# Check if port is provided as argument
-if len(sys.argv) > 1:
-    PORT = int(sys.argv[1])
-
-class RequestHandler(http.server.BaseHTTPRequestHandler):
-    def do_POST(self):
-        try:
-            content_length = int(self.headers['Content-Length'])
-            command = self.rfile.read(content_length).decode('utf-8')
-            
-            # Execute command in shell
-            result = subprocess.run(
-                command, 
-                shell=True, 
-                capture_output=True, 
-                text=True,
-                cwd=os.environ['HOME']
-            )
-            
-            output = result.stdout + result.stderr
-            
-            self.send_response(200)
-            self.send_header('Content-type', 'text/plain')
-            self.end_headers()
-            self.wfile.write(output.encode('utf-8'))
-            
-        except Exception as e:
-            self.send_response(500)
-            self.end_headers()
-            self.wfile.write(str(e).encode('utf-8'))
-
-    def log_message(self, format, *args):
-        return # Silence logging
-
-if __name__ == "__main__":
-    print(f"Obsidian Bridge running on port {PORT}...")
-    try:
-        http.server.HTTPServer(('127.0.0.1', PORT), RequestHandler).serve_forever()
-    except KeyboardInterrupt:
-        pass
-`;
-
-// The Auto-Start Command (for .bashrc)
-const AUTOSTART_CMD = `
-# Auto-start Obsidian Bridge if not running
-if ! pgrep -f "obsidian_server.py" > /dev/null;
-then
-    nohup python ~/obsidian_server.py > ~/obsidian_server.log 2>&1 &
-fi
-`;
+// The Python Server Script and Auto-Start Command are now handled by external scripts.
 
 export class TermuxBridgeSettingTab extends PluginSettingTab {
 	plugin: TermuxBridgePlugin;
@@ -95,53 +37,46 @@ export class TermuxBridgeSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
+		new Setting(containerEl)
+			.setName('Test Connection')
+			.setDesc('Sends a test command to check if the bridge is working.')
+			.addButton(btn => btn
+				.setButtonText('Test Now')
+				.onClick(async () => {
+					await this.plugin.testConnection();
+				}));
+
 		containerEl.createEl('hr');
 
 		// --- Setup Guide ---
 		containerEl.createEl('h2', {text: 'Setup Guide'});
-		containerEl.createEl('p', {text: 'Follow these steps to configure Termux to receive commands.'});
+		containerEl.createEl('p', {text: 'Run these commands in Termux to manage the bridge server.'});
 
-		// Step 1: Install Python
+		// Install Script
 		new Setting(containerEl)
-			.setName('Step 1: Install Python')
-			.setDesc('Run "pkg install python -y" in Termux.')
+			.setName('Install / Update')
+			.setDesc('Installs Python, creates the server script, and sets up auto-start.')
 			.addButton(btn => btn
-				.setButtonText('Copy Command')
-				.onClick(() => {
-					navigator.clipboard.writeText('pkg install python -y');
-					new Notice('Copied to clipboard');
-				}));
-
-		// Step 2: Create Server Script
-		new Setting(containerEl)
-			.setName('Step 2: Create Server Script')
-			.setDesc('Creates "~/obsidian_server.py" in Termux.')
-			.addButton(btn => btn
-				.setButtonText('Copy Script Generator')
+				.setButtonText('Copy Install Command')
 				.setCta()
 				.onClick(() => {
-					// We wrap the python script in a bash heredoc for easy pasting
-					const bashCommand = `cat > ~/obsidian_server.py << 'EOF'\n${SERVER_SCRIPT}\nEOF\n`;
-					navigator.clipboard.writeText(bashCommand);
-					new Notice('Copied script generator to clipboard! Paste into Termux.');
-				}));
-
-		// Step 3: Auto-Start
-		new Setting(containerEl)
-			.setName('Step 3: Enable Auto-Start')
-			.setDesc('Adds a check to your .bashrc to start the server automatically when Termux opens.')
-			.addButton(btn => btn
-				.setButtonText('Copy Auto-Start Code')
-				.onClick(() => {
-					// Append to .bashrc command
-					const cmd = `echo '${AUTOSTART_CMD}' >> ~/.bashrc && source ~/.bashrc`;
+					const cmd = 'curl -sL https://raw.githubusercontent.com/abduznik/obsidian-shell-termux/main/scripts/install.sh | bash';
 					navigator.clipboard.writeText(cmd);
-					new Notice('Copied auto-start command to clipboard');
+					new Notice('Install command copied!');
 				}));
 
-        // Instructions
-		const info = containerEl.createEl('div', {cls: 'setting-item-description'});
-		info.createEl('p', {text: 'After completing Step 3, the server will start automatically whenever you open Termux. You can close the Termux app (swipe away) and it might stop, but reopening Termux will restart it instantly.'});
-		info.createEl('p', {text: 'For true "boot-time" persistence, consider using the "Termux:Boot" app.'});
+		// Uninstall Script
+		new Setting(containerEl)
+			.setName('Uninstall')
+			.setDesc('Removes the server script.')
+			.addButton(btn => btn
+				.setButtonText('Copy Uninstall Command')
+				.onClick(() => {
+					const cmd = 'curl -sL https://raw.githubusercontent.com/abduznik/obsidian-shell-termux/main/scripts/uninstall.sh | bash';
+					navigator.clipboard.writeText(cmd);
+					new Notice('Uninstall command copied!');
+				}));
+
+		containerEl.createEl('p', {text: 'Note: The install script will add an auto-start check to your ~/.bashrc. If you uninstall, you may want to manually remove that block from ~/.bashrc.'});
 	}
 }

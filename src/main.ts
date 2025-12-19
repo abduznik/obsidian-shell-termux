@@ -74,6 +74,35 @@ export default class TermuxBridgePlugin extends Plugin {
 			new Notice(`Failed to connect to Termux on port ${port}. Is the server running?`);
 		}
 	}
+
+	async testConnection() {
+		const port = this.settings.serverPort;
+		const url = `http://127.0.0.1:${port}/`;
+		const testCommand = 'echo "Connection Successful"';
+
+		new Notice(`Testing connection on port ${port}...`);
+
+		try {
+			const response = await requestUrl({
+				url: url,
+				method: 'POST',
+				body: testCommand,
+				headers: {
+					'Content-Type': 'text/plain'
+				}
+			});
+
+			if (response.text.trim() === "Connection Successful") {
+				new Notice("Success! Termux is reachable.");
+			} else {
+				new Notice(`Connected, but received unexpected output: ${response.text}`);
+			}
+
+		} catch (err: any) {
+			console.error(err);
+			new Notice(`Connection failed: ${err.message || 'Unknown error'}`);
+		}
+	}
 }
 
 class TermuxCommandModal extends Modal {
