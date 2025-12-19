@@ -3,9 +3,26 @@ import subprocess
 import os
 
 PORT = 8085
+TOKEN_FILE = os.path.expanduser("~/.obsidian_termux_token")
+
+def get_token():
+    if os.path.exists(TOKEN_FILE):
+        with open(TOKEN_FILE, "r") as f:
+            return f.read().strip()
+    return None
 
 class RequestHandler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
+        # 0. Check Authentication
+        server_token = get_token()
+        client_token = self.headers.get('Authorization')
+
+        if server_token and client_token != server_token:
+            self.send_response(401)
+            self.end_headers()
+            self.wfile.write(b"Unauthorized: Invalid Token")
+            return
+        
         # 1. Read the command from the request body
         content_length = int(self.headers['Content-Length'])
         command = self.rfile.read(content_length).decode('utf-8')
@@ -43,4 +60,9 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
         return
 
 print(f"Obsidian Bridge running on port {PORT}...")
+if not get_token():
+    print("WARNING: No token file found at ~/.obsidian_termux_token. Authentication disabled (NOT SECURE).")
+else:
+    print("Authentication enabled.")
+
 http.server.HTTPServer(('127.0.0.1', PORT), RequestHandler).serve_forever()
