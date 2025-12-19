@@ -1,13 +1,19 @@
 #!/bin/bash
+set -e
 
 # 1. Install Python and OpenSSL in Termux
 echo "Installing Python and OpenSSL..."
-pkg install python openssl-tool -y
+pkg update -y && pkg install python openssl-tool -y
 
 # 2. Download the Server Script
 echo "Downloading obsidian_server.py..."
 mkdir -p ~/bin
-curl -sL https://raw.githubusercontent.com/abduznik/obsidian-shell-termux/main/scripts/obsidian_server.py -o ~/bin/obsidian_server.py
+curl -f -sL https://raw.githubusercontent.com/abduznik/obsidian-shell-termux/main/scripts/obsidian_server.py -o ~/bin/obsidian_server.py
+if [ ! -s ~/bin/obsidian_server.py ]; then
+    echo "Error: Download Failed Please Try Again"
+    exit 1
+fi
+
 
 # 3. Generate Security Token
 echo "Generating security token..."
