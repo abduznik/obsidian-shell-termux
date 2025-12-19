@@ -2,9 +2,9 @@ name: Security Checks
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, Add-Security-Layers, Custom-Auto-Release ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main, master, Add-Security-Layers, Custom-Auto-Release ]
 
 jobs:
   test-security:
