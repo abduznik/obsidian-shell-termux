@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# 1. Install Python in Termux
-echo "Installing Python..."
-pkg install python -y
+# 1. Install Python and OpenSSL in Termux
+echo "Installing Python and OpenSSL..."
+pkg install python openssl-tool -y
 
 # 2. Download the Server Script
 echo "Downloading obsidian_server.py..."
