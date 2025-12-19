@@ -1,0 +1,33 @@
+name: Build Obsidian Plugin
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      # We skip linting if 'npm run lint' is not robustly defined, but we'll try to build first.
+      - name: Build Plugin
+        run: npm run build
+
+      - name: Verify Artifacts
+        run: |
+          if [ ! -f main.js ]; then echo "main.js missing"; exit 1; fi
+          if [ ! -f manifest.json ]; then echo "manifest.json missing"; exit 1; fi
+          echo "Build successful! Artifacts created."
