@@ -46,6 +46,7 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
         try:
             content_length = int(self.headers['Content-Length'])
             body = self.rfile.read(content_length).decode('utf-8')
+            print(f"DEBUG: Body received: '{body}'")
         except (ValueError, TypeError):
             self.send_response(400)
             self.end_headers()
@@ -66,8 +67,21 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
                 # Should not happen with valid client, but fallback
                 cmd = str(body)
         except json.JSONDecodeError:
+            # If body looks like JSON but failed to parse, it's an error, not a command.
+            if body.strip().startswith("{"):
+                 self.send_response(400)
+                 self.end_headers()
+                 self.wfile.write(json.dumps({"output": "Error: Invalid JSON format received."}).encode('utf-8'))
+                 return
             # Fallback for backward compatibility (raw text command)
             cmd = body
+
+        # Safety check: If cmd still looks like JSON (e.g. from else block), block it.
+        if cmd.strip().startswith("{") and "cmd" in cmd:
+             self.send_response(400)
+             self.end_headers()
+             self.wfile.write(json.dumps({"output": "Error: Received JSON string as command. Check client serialization."}).encode('utf-8'))
+             return
 
         # 2.5 Block Dangerous/Interactive Commands
         blocked_commands = ["nano", "vim", "vi", "emacs", "top", "htop", "man", "less", "more", "ssh"]
