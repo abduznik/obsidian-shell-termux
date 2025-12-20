@@ -1,0 +1,83 @@
+name: Lint Code
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
+
+jobs:
+  lint:
+    name: Lint Check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write # Required to post comments
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm install --no-save eslint
+
+      - name: Run ESLint
+        id: eslint
+        shell: bash
+        run: |
+          # Run lint, capture output to file, and preserve exit code
+          set +e
+          npm run lint > eslint_report.txt 2>&1
+          EXIT_CODE=$?
+          cat eslint_report.txt
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+          exit $EXIT_CODE
+
+      - name: Comment on PR with Lint Results
+        if: failure() && steps.eslint.outputs.exit_code != '0' && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            try {
+              const report = fs.readFileSync('eslint_report.txt', 'utf8');
+              // Truncate if too long (GitHub limit is ~65k)
+              const maxLength = 60000;
+              let bodyContent = report;
+              if (report.length > maxLength) {
+                bodyContent = report.substring(0, maxLength) + '\n... (Output truncated)';
+              }
+
+              const body = `#### Hello!
+
+**I found the following linting issues in your pull request:**
+
+<details open>
+<summary>Click to see linting errors</summary>
+
+```text
+${bodyContent}
+```
+
+</details>
+
+<sup>This check was done automatically. Please fix these issues and push again.</sup>`;
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            } catch (error) {
+              console.error('Error posting comment:', error);
+            }
