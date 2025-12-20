@@ -1,6 +1,6 @@
 {
 	  "name": "obsidian-termux-bridge",
-	  "version": "1.0.0",
+	  "version": "0.1.1",
 	  "description": "Execute Termux commands directly from Obsidian via local HTTP bridge",
 	  "main": "main.js",
 	

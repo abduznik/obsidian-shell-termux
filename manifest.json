@@ -1,7 +1,7 @@
 {
 	"id": "obsidian-termux-bridge",
 	"name": "Termux Bridge",
-	"version": "1.0.0",
+	"version": "0.1.1",
 	"minAppVersion": "0.15.0",
 	"description": "Execute Termux commands directly from Obsidian via local HTTP bridge.",
 	"author": "abduznik",
