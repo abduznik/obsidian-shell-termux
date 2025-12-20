@@ -1,14 +1,18 @@
 import { App, Editor, MarkdownView, Modal, Notice, Platform, Plugin, Setting, requestUrl, WorkspaceLeaf } from 'obsidian';
 import { DEFAULT_SETTINGS, TermuxBridgeSettings, TermuxBridgeSettingTab } from "./settings";
 import { TermuxTerminalView, TERMUX_TERMINAL_VIEW_TYPE } from "./TermuxTerminalView";
+import { TermuxEditorExtensions } from "./editor_plugin";
 
 export default class TermuxBridgePlugin extends Plugin {
 	settings: TermuxBridgeSettings;
 
 	async onload() {
 		await this.loadSettings();
-
+	
 		this.addSettingTab(new TermuxBridgeSettingTab(this.app, this));
+
+		const editorExtensions = new TermuxEditorExtensions(this);
+    	editorExtensions.load();
 
 		// Register View
 		this.registerView(
@@ -80,53 +84,78 @@ export default class TermuxBridgePlugin extends Plugin {
 	}
 
 	async executeCommand(command: string, pasteBack: boolean) {
-		const port = this.settings.serverPort;
-		const url = `http://127.0.0.1:${port}/`;
+        const port = this.settings.serverPort;
+        const url = `http://127.0.0.1:${port}/`;
 
-		new Notice(`Sending to Termux...`);
+		const cleanCommand = command.trim(); 
+        if (!cleanCommand) return; // Don't send empty commands
 
-		try {
-			// Updated to use JSON protocol
-			const response = await requestUrl({
-				url: url,
-				method: 'POST',
-				body: JSON.stringify({ cmd: command }), // default cwd
-				headers: {
-					'Content-Type': 'application/json',
-					'Authorization': this.settings.serverToken
-				}
-			});
+        // 1. Find the Terminal View (if open) to display logs
+        const leaves = this.app.workspace.getLeavesOfType(TERMUX_TERMINAL_VIEW_TYPE);
+        const terminalView = leaves.length > 0 ? (leaves[0]!.view as TermuxTerminalView) : null;
 
-			// Response is JSON now: { output: "...", cwd: "..." }
-			let output = "";
-			try {
-				const data = response.json;
-				output = data.output;
-			} catch (e) {
-				// Fallback if server returns plain text (old version)
-				output = response.text;
-			}
-			
-			console.log("Termux Output:", output);
+        // 2. Visually show the command being typed
+        if (terminalView) {
+            terminalView.appendOutput(`$ ${cleanCommand}\n`, 'command');
+        } else {
+            new Notice(`Sending: ${command}`);
+        }
 
-			if (pasteBack) {
-				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (view) {
-					view.editor.replaceSelection(output);
-					new Notice('Output pasted!');
-				} else {
-					await navigator.clipboard.writeText(output);
-					new Notice('Output copied to clipboard');
-				}
-			} else {
-				new Notice('Command executed successfully');
-			}
+        try {
+            const response = await requestUrl({
+                url: url,
+                method: 'POST',
+                body: JSON.stringify({ cmd: cleanCommand }), 
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': this.settings.serverToken
+                }
+            });
 
-		} catch (err) {
-			console.error(err);
-			new Notice(`Failed to connect. Is server running?`);
-		}
-	}
+            let output = "";
+            try {
+                const data = response.json;
+                output = data.output;
+                
+                // Optional: Update CWD if returned
+                if (data.cwd && terminalView) {
+                    terminalView.currentCwd = data.cwd;
+                }
+            } catch (e) {
+                output = response.text;
+            }
+            
+            // 3. Print the output to the Terminal View
+            if (terminalView) {
+                terminalView.appendOutput(output, 'output');
+            }
+
+            // 4. Handle Paste Back (if requested)
+            if (pasteBack) {
+                const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+                if (view) {
+                    view.editor.replaceSelection(output);
+                    new Notice('Output pasted!');
+                } else {
+                    await navigator.clipboard.writeText(output);
+                    new Notice('Output copied to clipboard');
+                }
+            } else if (!terminalView) {
+                // Only show notice if terminal isn't open (avoids clutter)
+                new Notice('Command executed');
+            }
+
+        } catch (err: any) {
+            console.error(err);
+            const errorMsg = `Error: ${err.message || 'Connection Failed'}`;
+            
+            if (terminalView) {
+                terminalView.appendOutput(`${errorMsg}\n`, 'error');
+            } else {
+                new Notice(errorMsg);
+            }
+        }
+    }
 
 	async testConnection() {
 		const port = this.settings.serverPort;
