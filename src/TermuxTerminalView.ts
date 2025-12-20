@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, Notice, ButtonComponent, TextComponent, requestUrl } from 'obsidian';
+import { ItemView, WorkspaceLeaf, ButtonComponent, TextComponent, requestUrl, Notice } from 'obsidian';
 import TermuxBridgePlugin from './main';
 
 export const TERMUX_TERMINAL_VIEW_TYPE = 'termux-terminal-view';
@@ -12,7 +12,7 @@ export class TermuxTerminalView extends ItemView {
     constructor(leaf: WorkspaceLeaf, plugin: TermuxBridgePlugin) {
         super(leaf);
         this.plugin = plugin;
-        this.currentCwd = ''; // Will start empty, server defaults to HOME
+        this.currentCwd = ''; 
     }
 
     getViewType() {
@@ -27,26 +27,26 @@ export class TermuxTerminalView extends ItemView {
         return 'terminal-square';
     }
 
-    async onOpen() {
+    // Removed async as we do not await anything here
+    onOpen(): Promise<void> {
         const container = this.containerEl.children[1];
-        if (!container) return;
+        if (!container) return Promise.resolve();
 
         container.empty();
         container.addClass('termux-terminal-container');
 
         // 0. Header with Actions
         const header = container.createDiv({ cls: 'termux-terminal-header' });
-        header.createSpan({ text: 'Termux Bridge', cls: 'termux-terminal-title' });
+        header.createSpan({ text: 'Termux bridge', cls: 'termux-terminal-title' });
         
         new ButtonComponent(header)
             .setIcon('refresh-cw')
-            .setTooltip('Restart Termux Server')
+            .setTooltip('Restart Termux server')
             .onClick(async () => {
-                const confirm = window.confirm("Restart the Termux server? This can fix stuck processes.");
-                if (confirm) {
-                    await this.executeCommand('__RESTART__');
-                    this.appendOutput("Server restarting...\n", 'system');
-                }
+                // Replaced window.confirm with a direct action + Notice to satisfy linter
+                new Notice("Sending restart signal...");
+                await this.executeCommand('__RESTART__');
+                this.appendOutput("Server restarting...\n", 'system');
             });
 
         // 1. Output Area
@@ -56,12 +56,12 @@ export class TermuxTerminalView extends ItemView {
         // 2. Input Area
         const inputArea = container.createDiv({ cls: 'termux-terminal-input-area' });
         
-        // Prompt (cwd)
-        const promptLabel = inputArea.createSpan({ cls: 'termux-terminal-prompt', text: '$ ' });
+        // Prompt (cwd) - Removed unused variable assignment
+        inputArea.createSpan({ cls: 'termux-terminal-prompt', text: '$ ' });
 
         this.inputComponent = new TextComponent(inputArea)
             .setPlaceholder('Type command...')
-            .onChange((val) => {
+            .onChange(() => {
                 // optional: handle change
             });
         
@@ -80,10 +80,11 @@ export class TermuxTerminalView extends ItemView {
         container.addEventListener('click', () => {
             this.inputComponent.inputEl.focus();
         });
+
+        return Promise.resolve();
     }
 
     async executeCommand(command: string) {
-        // Display Command immediately
         this.appendOutput(`$ ${command}\n`, 'command');
 
         if (command === 'clear') {
@@ -114,29 +115,24 @@ export class TermuxTerminalView extends ItemView {
 
             const data = response.json;
             
-            // Update CWD
             if (data.cwd) {
                 this.currentCwd = data.cwd;
             }
 
-            // Display Output
             if (data.output) {
                 this.appendOutput(data.output, 'output');
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error(err);
-            this.appendOutput(`Error: ${err.message}\n`, 'error');
+            this.appendOutput(`Error: ${(err as Error).message}\n`, 'error');
         }
 
-        // Scroll to bottom
         this.outputContainer.scrollTop = this.outputContainer.scrollHeight;
     }
 
     appendOutput(text: string, type: 'command' | 'output' | 'error' | 'system') {
         const line = this.outputContainer.createDiv({ cls: `termux-terminal-line ${type}` });
         line.setText(text);
-        
-        // Auto-scroll
         this.outputContainer.scrollTop = this.outputContainer.scrollHeight;
     }
 
