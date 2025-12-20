@@ -18,7 +18,7 @@ A plugin that connects Obsidian to Termux via a local HTTP bridge, bypassing And
 - [ ] Add live editor for files (nano, vim)
 - [ ] Customizable command templates (e.g., "git commit -m '...'")
 - [ ] Visual indicator in status bar for server connection status
-- [ ] Run code from snippets (at least .sh ones)
+- [X] ~~Run code from snippets (at least .sh ones)~~
 
 ## Setup Guide
 
