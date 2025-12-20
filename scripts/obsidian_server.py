@@ -1,4 +1,5 @@
 import http.server
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 import subprocess
 import os
 import secrets
@@ -104,6 +105,9 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"output": error_msg, "cwd": cwd}).encode('utf-8'))
                 return
 
+        if not os.path.exists(cwd):
+            cwd = os.environ['HOME']
+
         print(f"Executing: '{cmd}' in '{cwd}'")
         
         try:
@@ -141,14 +145,16 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
             # We use a unique marker to separate command output from the pwd output.
             marker = "___OBSIDIAN_TERMUX_CWD___"
             full_cmd = f"{cmd}; echo ''; echo '{marker}'; pwd"
-            
+            env = os.environ.copy()
+
             result = subprocess.run(
                 full_cmd, 
                 shell=True, 
                 capture_output=True, 
                 text=True,
                 cwd=cwd,
-                timeout=15
+                timeout=15,
+                env=env
             )
             
             # 4. Process Output
@@ -203,4 +209,4 @@ if not get_token():
 else:
     print("Authentication enabled.")
 
-http.server.HTTPServer(('127.0.0.1', PORT), RequestHandler).serve_forever()
+ThreadingHTTPServer(('127.0.0.1', PORT), RequestHandler).serve_forever()
