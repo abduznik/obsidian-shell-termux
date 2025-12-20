@@ -89,16 +89,16 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
         base_cmd = cmd_parts[0] if cmd_parts else ""
         
         if base_cmd in blocked_commands:
-            self.send_response(400)
+            self.send_response(200)
             self.end_headers()
-            error_msg = f"Error: Command '{base_cmd}' is interactive and not supported."
+            error_msg = f"Error: Command '{base_cmd}' is interactive and not supported in this bridge."
             self.wfile.write(json.dumps({"output": error_msg, "cwd": cwd}).encode('utf-8'))
             return
 
         # Check for pkg/apt install without -y
         if base_cmd in ["pkg", "apt", "apt-get"] and "install" in cmd_parts:
             if "-y" not in cmd_parts:
-                self.send_response(400)
+                self.send_response(200)
                 self.end_headers()
                 error_msg = "Error: Please use '-y' flag for installations (e.g., 'pkg install git -y') to avoid hanging."
                 self.wfile.write(json.dumps({"output": error_msg, "cwd": cwd}).encode('utf-8'))
@@ -182,9 +182,9 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(response_json.encode('utf-8'))
 
         except subprocess.TimeoutExpired:
-            self.send_response(408) # Request Timeout
+            self.send_response(200)
             self.end_headers()
-            error_msg = "Command timed out. Note: Interactive commands (like nano, vim) are NOT supported."
+            error_msg = "Command timed out (15s). Note: Interactive commands are NOT supported."
             self.wfile.write(json.dumps({"output": error_msg, "cwd": cwd}).encode('utf-8'))
             
         except Exception as e:
