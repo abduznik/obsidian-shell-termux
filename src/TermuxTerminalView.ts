@@ -108,10 +108,14 @@ export class TermuxTerminalView extends ItemView {
                 })
             });
 
-            if (response.status === 408) {
+            // Handle errors with JSON responses (400 Bad Request, 408 Timeout, 500 Server Error)
+            if (response.status >= 400) {
                  const data = response.json;
-                 this.appendOutput(data.output + "\n", 'error');
-                 return;
+                 if (data && data.output) {
+                     this.appendOutput(data.output + "\n", 'error');
+                     return;
+                 }
+                 throw new Error(response.text || `Server Error ${response.status}`);
             }
 
             if (response.status < 200 || response.status >= 300) {
