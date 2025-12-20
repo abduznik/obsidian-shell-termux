@@ -14,7 +14,8 @@ A plugin that connects Obsidian to Termux via a local HTTP bridge, bypassing And
 
 - [X] ~~Implement local HTTP bridge~~
 - [X] ~~Add security token authentication~~
-- [ ] Support for live terminal
+- [X] ~~Support for live terminal~~
+- [ ] Add live editor for files (nano, vim)
 - [ ] Customizable command templates (e.g., "git commit -m '...'")
 - [ ] Visual indicator in status bar for server connection status
 - [ ] Run code from snippets (at least .sh ones)
@@ -25,15 +26,11 @@ A plugin that connects Obsidian to Termux via a local HTTP bridge, bypassing And
 
 Open Termux and run the following command to automatically set up the environment, download the server, and generate a security token. **You can also copy this command directly from the Obsidian plugin settings.**
 
-
-
 ```bash
 
 curl -sL https://raw.githubusercontent.com/abduznik/obsidian-shell-termux/main/scripts/install.sh | bash
 
 ```
-
-
 
 **What this script does:**
 
@@ -58,6 +55,16 @@ It will display a **Security Token**. Copy this token; you will need to paste it
 
 - **Run Termux Command**: Opens a modal to enter a shell command. The output will be displayed in a notification.
 - **Run Termux Command and Paste Output**: Opens a modal to enter a command. The output will be inserted into your current note at the cursor position.
+
+### Live Terminal
+
+Open the "Termux Terminal" view from the ribbon or command palette.
+
+- **Interactive Shell**: Type commands and get results.
+- **Restart Server**: Click the refresh icon to restart the server process if it behaves unexpectedly.
+- **Safety Checks**:
+  - Interactive commands (`nano`, `vim`, `top`, etc.) are blocked to prevent freezing.
+  - `pkg install` commands require the `-y` flag (e.g., `pkg install git -y`).
 
 ### Examples
 

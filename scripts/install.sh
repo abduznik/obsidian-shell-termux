@@ -23,15 +23,18 @@ chmod 600 ~/.obsidian_termux_token
 
 # 4. Enable Auto-Start
 echo "Configuring auto-start in ~/.bashrc..."
-if ! grep -q "obsidian_server.py" ~/.bashrc; then
-    cat << 'EOF' >> ~/.bashrc
+
+# Remove old entries to prevent duplicates or wrong paths
+sed -i '/# Auto-start Obsidian Bridge/,/fi/d' ~/.bashrc
+
+cat << 'EOF' >> ~/.bashrc
 
 # Auto-start Obsidian Bridge if not running
 if ! pgrep -f "obsidian_server.py" > /dev/null; then
+    mkdir -p ~/bin
     nohup python ~/bin/obsidian_server.py > ~/bin/obsidian_server.log 2>&1 &
 fi
 EOF
-fi
 
 echo "Installation complete!"
 echo "---------------------------------------------------"
