@@ -20,7 +20,7 @@ export class TermuxTerminalView extends ItemView {
     }
 
     getDisplayText() {
-        return 'Termux Terminal';
+        return 'Termux Console';
     }
 
     getIcon() {

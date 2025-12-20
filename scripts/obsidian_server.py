@@ -96,14 +96,11 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"output": error_msg, "cwd": cwd}).encode('utf-8'))
             return
 
-        # Check for pkg/apt install without -y
+        # Check for pkg/apt install without -y and add -y to it
         if base_cmd in ["pkg", "apt", "apt-get"] and "install" in cmd_parts:
             if "-y" not in cmd_parts:
-                self.send_response(200)
-                self.end_headers()
-                error_msg = "Error: Please use '-y' flag for installations (e.g., 'pkg install git -y') to avoid hanging."
-                self.wfile.write(json.dumps({"output": error_msg, "cwd": cwd}).encode('utf-8'))
-                return
+                print(f"DEBUG: Auto-appending '-y' to command: {cmd}")
+                cmd += " -y"
 
         if not os.path.exists(cwd):
             cwd = os.environ['HOME']
@@ -153,7 +150,7 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
                 capture_output=True, 
                 text=True,
                 cwd=cwd,
-                timeout=15,
+                timeout=30,
                 env=env
             )
             

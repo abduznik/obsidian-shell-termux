@@ -1,4 +1,4 @@
-/* settings */
+/* --- 1. Terminal View Styles --- */
 .termux-terminal-container {
     display: flex;
     flex-direction: column;
@@ -33,27 +33,11 @@
     padding-bottom: 10px;
 }
 
-.termux-terminal-line {
-    margin-bottom: 2px;
-}
-
-.termux-terminal-line.command {
-    color: #f1fa8c; /* Yellowish for command */
-    font-weight: bold;
-}
-
-.termux-terminal-line.output {
-    color: #f8f8f2; /* Whiteish */
-}
-
-.termux-terminal-line.error {
-    color: #ff5555; /* Red */
-}
-
-.termux-terminal-line.system {
-    color: #6272a4; /* Blueish/Grey */
-    font-style: italic;
-}
+.termux-terminal-line { margin-bottom: 2px; }
+.termux-terminal-line.command { color: #f1fa8c; font-weight: bold; }
+.termux-terminal-line.output { color: #f8f8f2; }
+.termux-terminal-line.error { color: #ff5555; }
+.termux-terminal-line.system { color: #6272a4; font-style: italic; }
 
 .termux-terminal-input-area {
     display: flex;
@@ -63,9 +47,7 @@
 }
 
 .termux-terminal-prompt {
-    color: #50fa7b; /* Green */
-    margin-right: 5px;
-    font-weight: bold;
+    color: #50fa7b; margin-right: 5px; font-weight: bold;
 }
 
 .termux-terminal-input-area input {
@@ -77,8 +59,45 @@
     outline: none;
 }
 
-.termux-terminal-input-area input:focus {
-    box-shadow: none;
+/* --- 2. New Code Block Button (Android Optimized) --- */
+
+.termux-code-block-wrap {
+    position: relative;
+    display: block;
+}
+
+.termux-run-button {
+    position: absolute;
+    top: 10px;        /* Moved down slightly for better alignment */
+    right: 50px;      /* Moved left (away from edge) */
+    z-index: 10;
+    
+    /* Auto width to fit text */
+    width: auto;
+    height: 32px;
+    padding: 0 12px;
+    
+    /* Flex to align icon + text */
+    display: flex;
+    align-items: center;
+    gap: 6px;         /* Space between icon and text */
+    
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-radius: 6px;
     border: none;
-    outline: none !important;
+    font-size: 14px;  /* Readable text size */
+    font-weight: bold;
+    opacity: 0.9;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+
+.termux-run-button:active {
+    opacity: 1;
+    transform: scale(0.96);
+}
+
+.termux-run-button svg {
+    width: 16px;
+    height: 16px;
 }
