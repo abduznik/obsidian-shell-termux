@@ -3,6 +3,11 @@ import TermuxBridgePlugin from './main';
 
 export const TERMUX_TERMINAL_VIEW_TYPE = 'termux-terminal-view';
 
+interface TermuxResponse {
+    output: string;
+    cwd?: string;
+}
+
 export class TermuxTerminalView extends ItemView {
     plugin: TermuxBridgePlugin;
     currentCwd: string;
@@ -20,14 +25,13 @@ export class TermuxTerminalView extends ItemView {
     }
 
     getDisplayText() {
-        return 'Termux Console';
+        return 'Terminal';
     }
 
     getIcon() {
         return 'terminal-square';
     }
 
-    // Removed async as we do not await anything here
     onOpen(): Promise<void> {
         const container = this.containerEl.children[1];
         if (!container) return Promise.resolve();
@@ -35,28 +39,25 @@ export class TermuxTerminalView extends ItemView {
         container.empty();
         container.addClass('termux-terminal-container');
 
-        // 0. Header with Actions
         const header = container.createDiv({ cls: 'termux-terminal-header' });
         header.createSpan({ text: 'Termux bridge', cls: 'termux-terminal-title' });
         
         new ButtonComponent(header)
             .setIcon('refresh-cw')
-            .setTooltip('Restart Termux server')
-            .onClick(async () => {
-                // Replaced window.confirm with a direct action + Notice to satisfy linter
-                new Notice("Sending restart signal...");
-                await this.executeCommand('__RESTART__');
-                this.appendOutput("Server restarting...\n", 'system');
+            .setTooltip('Restart server') 
+            .onClick(() => {
+                void (async () => {
+                    new Notice("Sending restart signal...");
+                    await this.executeCommand('__RESTART__');
+                    this.appendOutput("Server restarting...\n", 'system');
+                })();
             });
 
-        // 1. Output Area
         this.outputContainer = container.createDiv({ cls: 'termux-terminal-output' });
         this.appendOutput("Termux Bridge Connected.\nType 'help' for info or any shell command.\n", 'system');
 
-        // 2. Input Area
         const inputArea = container.createDiv({ cls: 'termux-terminal-input-area' });
         
-        // Prompt (cwd) - Removed unused variable assignment
         inputArea.createSpan({ cls: 'termux-terminal-prompt', text: '$ ' });
 
         this.inputComponent = new TextComponent(inputArea)
@@ -65,18 +66,16 @@ export class TermuxTerminalView extends ItemView {
                 // optional: handle change
             });
         
-        // Handle Enter key
-        this.inputComponent.inputEl.addEventListener('keypress', async (e) => {
+        this.inputComponent.inputEl.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 const cmd = this.inputComponent.getValue();
                 if (cmd.trim()) {
                     this.inputComponent.setValue('');
-                    await this.executeCommand(cmd);
+                    void this.executeCommand(cmd);
                 }
             }
         });
 
-        // Focus input on click anywhere in container
         container.addEventListener('click', () => {
             this.inputComponent.inputEl.focus();
         });
@@ -113,7 +112,7 @@ export class TermuxTerminalView extends ItemView {
                 throw new Error(response.text || 'Server Error');
             }
 
-            const data = response.json;
+            const data = response.json as TermuxResponse;
             
             if (data.cwd) {
                 this.currentCwd = data.cwd;

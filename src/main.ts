@@ -1,8 +1,12 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, requestUrl, WorkspaceLeaf } from 'obsidian';
+import { App, Editor, MarkdownView, Modal, Notice, Plugin, Setting, requestUrl, WorkspaceLeaf } from 'obsidian';
 import { DEFAULT_SETTINGS, TermuxBridgeSettings, TermuxBridgeSettingTab } from "./settings";
 import { TermuxTerminalView, TERMUX_TERMINAL_VIEW_TYPE } from "./TermuxTerminalView";
 import { TermuxEditorExtensions } from "./editor_plugin";
-import { Setting } from "obsidian";
+
+interface TermuxResponse {
+    output: string;
+    cwd?: string;
+}
 
 export default class TermuxBridgePlugin extends Plugin {
     settings: TermuxBridgeSettings;
@@ -15,29 +19,26 @@ export default class TermuxBridgePlugin extends Plugin {
         const editorExtensions = new TermuxEditorExtensions(this);
         editorExtensions.load();
 
-        // Register View
         this.registerView(
             TERMUX_TERMINAL_VIEW_TYPE,
             (leaf) => new TermuxTerminalView(leaf, this)
         );
 
-        // Ribbon Icon
-        this.addRibbonIcon('terminal-square', 'Open Termux terminal', () => {
-            this.activateView();
+        this.addRibbonIcon('terminal-square', 'Open terminal', () => {
+            void this.activateView();
         });
 
-        // Commands
         this.addCommand({
             id: 'open-termux-terminal',
             name: 'Open terminal',
             callback: () => {
-                this.activateView();
+                void this.activateView();
             }
         });
 
         this.addCommand({
             id: 'run-termux',
-            name: 'Run Termux command',
+            name: 'Execute code',
             callback: () => {
                 new TermuxCommandModal(this.app, this, false).open();
             }
@@ -45,8 +46,8 @@ export default class TermuxBridgePlugin extends Plugin {
 
         this.addCommand({
             id: 'run-termux-paste',
-            name: 'Run Termux command and paste output',
-            editorCallback: (editor: Editor, view: MarkdownView) => {
+            name: 'Execute code and paste output',
+            editorCallback: (editor: Editor, view: MarkdownView) => { 
                 new TermuxCommandModal(this.app, this, true, editor).open();
             }
         });
@@ -59,7 +60,6 @@ export default class TermuxBridgePlugin extends Plugin {
         const leaves = workspace.getLeavesOfType(TERMUX_TERMINAL_VIEW_TYPE);
 
         if (leaves.length > 0) {
-            // FIX 1: Use non-null assertion (!) because we checked length > 0
             leaf = leaves[0]!;
         } else {
             leaf = workspace.getRightLeaf(false);
@@ -69,7 +69,7 @@ export default class TermuxBridgePlugin extends Plugin {
         }
 
         if (leaf) {
-            workspace.revealLeaf(leaf);
+            void workspace.revealLeaf(leaf);
         }
     }
 
@@ -89,8 +89,6 @@ export default class TermuxBridgePlugin extends Plugin {
         if (!cleanCommand) return; 
 
         const leaves = this.app.workspace.getLeavesOfType(TERMUX_TERMINAL_VIEW_TYPE);
-        
-        // FIX 2: Use non-null assertion (!) to fix "Object is possibly undefined"
         const terminalView = leaves.length > 0 ? (leaves[0]!.view as unknown as TermuxTerminalView) : null;
 
         if (terminalView) {
@@ -112,13 +110,13 @@ export default class TermuxBridgePlugin extends Plugin {
 
             let output = "";
             try {
-                const data = response.json;
+                const data = response.json as TermuxResponse;
                 output = data.output;
                 
                 if (data.cwd && terminalView) {
                     terminalView.currentCwd = data.cwd;
                 }
-            } catch (error) {
+            } catch { 
                 output = response.text;
             }
             
@@ -136,7 +134,7 @@ export default class TermuxBridgePlugin extends Plugin {
                     new Notice('Output copied to clipboard');
                 }
             } else if (!terminalView) {
-                new Notice('Command executed');
+                new Notice('Executed successfully');
             }
 
         } catch (err: unknown) {
@@ -169,12 +167,8 @@ export default class TermuxBridgePlugin extends Plugin {
                 }
             });
 
-            let output = "";
-            try {
-                output = response.json.output.trim();
-            } catch {
-                output = response.text.trim();
-            }
+            const data = response.json as TermuxResponse; 
+            const output = data && data.output ? data.output.trim() : response.text.trim();
 
             if (output.includes("Connection Successful")) {
                 new Notice("Success! Termux is reachable.");
@@ -194,8 +188,7 @@ class TermuxCommandModal extends Modal {
     command: string;
     pasteBack: boolean;
 
-    // FIX 3: Added 'App' to imports at the top, so this now works
-    constructor(app: App, plugin: TermuxBridgePlugin, pasteBack: boolean, editor?: Editor) {
+    constructor(app: App, plugin: TermuxBridgePlugin, pasteBack: boolean, editor?: Editor) { 
         super(app);
         this.plugin = plugin;
         this.command = '';
@@ -204,12 +197,12 @@ class TermuxCommandModal extends Modal {
 
     onOpen() {
         const {contentEl} = this;
-        contentEl.createEl('h2', {text: this.pasteBack ? 'Run & paste output' : 'Run Termux command'});
+        contentEl.createEl('h2', {text: this.pasteBack ? 'Execute and paste' : 'Execute code'});
         
         new Setting(contentEl)
             .setName('Command')
             .addText(text => text
-                .setPlaceholder('ls -la')
+                .setPlaceholder('Ls -la')
                 .onChange(value => {
                     this.command = value;
                 }));
@@ -218,8 +211,8 @@ class TermuxCommandModal extends Modal {
             .addButton(btn => btn
                 .setButtonText('Run')
                 .setCta()
-                .onClick(async () => {
-                    await this.plugin.executeCommand(this.command, this.pasteBack);
+                .onClick(() => {
+                    void this.plugin.executeCommand(this.command, this.pasteBack);
                     this.close();
                 }));
     }
