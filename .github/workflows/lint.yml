@@ -57,20 +57,15 @@ jobs:
                 bodyContent = report.substring(0, maxLength) + '\n... (Output truncated)';
               }
 
-              const body = `#### Hello!
-
-**I found the following linting issues in your pull request:**
-
-<details open>
-<summary>Click to see linting errors</summary>
-
-```text
-${bodyContent}
-```
-
-</details>
-
-<sup>This check was done automatically. Please fix these issues and push again.</sup>`;
+              const body = '#### Hello!\n\n' +
+                '**I found the following linting issues in your pull request:**\n\n' +
+                '<details open>\n' +
+                '<summary>Click to see linting errors</summary>\n\n' +
+                '```text\n' +
+                bodyContent + '\n' +
+                '```\n\n' +
+                '</details>\n\n' +
+                '<sup>This check was done automatically. Please fix these issues and push again.</sup>';
 
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
