@@ -1,5 +1,6 @@
-import { App, Editor, MarkdownView, Modal, Notice, Platform, Plugin, Setting, requestUrl } from 'obsidian';
+import { App, Editor, MarkdownView, Modal, Notice, Platform, Plugin, Setting, requestUrl, WorkspaceLeaf } from 'obsidian';
 import { DEFAULT_SETTINGS, TermuxBridgeSettings, TermuxBridgeSettingTab } from "./settings";
+import { TermuxTerminalView, TERMUX_TERMINAL_VIEW_TYPE } from "./TermuxTerminalView";
 
 export default class TermuxBridgePlugin extends Plugin {
 	settings: TermuxBridgeSettings;
@@ -9,9 +10,29 @@ export default class TermuxBridgePlugin extends Plugin {
 
 		this.addSettingTab(new TermuxBridgeSettingTab(this.app, this));
 
+		// Register View
+		this.registerView(
+			TERMUX_TERMINAL_VIEW_TYPE,
+			(leaf) => new TermuxTerminalView(leaf, this)
+		);
+
+		// Ribbon Icon
+		this.addRibbonIcon('terminal-square', 'Open Termux Terminal', () => {
+			this.activateView();
+		});
+
+		// Commands
+		this.addCommand({
+			id: 'open-termux-terminal',
+			name: 'Open Terminal',
+			callback: () => {
+				this.activateView();
+			}
+		});
+
 		this.addCommand({
 			id: 'run-termux-command',
-			name: 'Run Termux Command',
+			name: 'Run Termux Command (Modal)',
 			callback: () => {
 				new TermuxCommandModal(this.app, this, false).open();
 			}
@@ -26,6 +47,30 @@ export default class TermuxBridgePlugin extends Plugin {
 		});
 	}
 
+	async activateView() {
+		const { workspace } = this.app;
+
+		let leaf: WorkspaceLeaf | null = null;
+		const leaves = workspace.getLeavesOfType(TERMUX_TERMINAL_VIEW_TYPE);
+
+		if (leaves.length > 0) {
+			// A leaf with our view already exists, use that
+			leaf = leaves[0] as WorkspaceLeaf;
+		} else {
+			// Our view could not be found in the workspace, create a new leaf
+			// in the right sidebar
+			leaf = workspace.getRightLeaf(false);
+			if (leaf) {
+				await leaf.setViewState({ type: TERMUX_TERMINAL_VIEW_TYPE, active: true });
+			}
+		}
+
+		// "Reveal" the leaf in case it is in a collapsed sidebar
+		if (leaf) {
+			workspace.revealLeaf(leaf);
+		}
+	}
+
 	async loadSettings() {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<TermuxBridgeSettings>);
 	}
@@ -38,22 +83,30 @@ export default class TermuxBridgePlugin extends Plugin {
 		const port = this.settings.serverPort;
 		const url = `http://127.0.0.1:${port}/`;
 
-		new Notice(`Sending to Termux (Port ${port})...`);
+		new Notice(`Sending to Termux...`);
 
 		try {
-			// using requestUrl from Obsidian API to avoid CORS issues if any (though localhost is usually fine)
-			// Sending a POST request with the command as the body
+			// Updated to use JSON protocol
 			const response = await requestUrl({
 				url: url,
 				method: 'POST',
-				body: command,
+				body: JSON.stringify({ cmd: command }), // default cwd
 				headers: {
-					'Content-Type': 'text/plain',
+					'Content-Type': 'application/json',
 					'Authorization': this.settings.serverToken
 				}
 			});
 
-			const output = response.text;
+			// Response is JSON now: { output: "...", cwd: "..." }
+			let output = "";
+			try {
+				const data = response.json;
+				output = data.output;
+			} catch (e) {
+				// Fallback if server returns plain text (old version)
+				output = response.text;
+			}
+			
 			console.log("Termux Output:", output);
 
 			if (pasteBack) {
@@ -62,7 +115,6 @@ export default class TermuxBridgePlugin extends Plugin {
 					view.editor.replaceSelection(output);
 					new Notice('Output pasted!');
 				} else {
-					// Fallback if no editor focused
 					await navigator.clipboard.writeText(output);
 					new Notice('Output copied to clipboard');
 				}
@@ -72,7 +124,7 @@ export default class TermuxBridgePlugin extends Plugin {
 
 		} catch (err) {
 			console.error(err);
-			new Notice(`Failed to connect to Termux on port ${port}. Is the server running?`);
+			new Notice(`Failed to connect. Is server running?`);
 		}
 	}
 
@@ -81,23 +133,31 @@ export default class TermuxBridgePlugin extends Plugin {
 		const url = `http://127.0.0.1:${port}/`;
 		const testCommand = 'echo "Connection Successful"';
 
-		new Notice(`Testing connection on port ${port}...`);
+		new Notice(`Testing connection...`);
 
 		try {
 			const response = await requestUrl({
 				url: url,
 				method: 'POST',
-				body: testCommand,
+				body: JSON.stringify({ cmd: testCommand }),
 				headers: {
-					'Content-Type': 'text/plain',
+					'Content-Type': 'application/json',
 					'Authorization': this.settings.serverToken
 				}
 			});
 
-			if (response.text.trim() === "Connection Successful") {
+			// Handle JSON response
+			let output = "";
+			try {
+				output = response.json.output.trim();
+			} catch {
+				output = response.text.trim();
+			}
+
+			if (output.includes("Connection Successful")) {
 				new Notice("Success! Termux is reachable.");
 			} else {
-				new Notice(`Connected, but received unexpected output: ${response.text}`);
+				new Notice(`Connected, but unexpected output: ${output}`);
 			}
 
 		} catch (err: any) {
@@ -122,8 +182,7 @@ class TermuxCommandModal extends Modal {
 	onOpen() {
 		const {contentEl} = this;
 		contentEl.createEl('h2', {text: this.pasteBack ? 'Run & Paste Output' : 'Run Termux Command'});
-		contentEl.createEl('p', {text: 'Make sure your Python server is running in Termux.'});
-
+		
 		new Setting(contentEl)
 			.setName('Command')
 			.addText(text => text

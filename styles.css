@@ -1,8 +1,84 @@
-/*
+/* settings */
+.termux-terminal-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background-color: #1e1e1e;
+    color: #cccccc;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    padding: 10px;
+    overflow: hidden;
+}
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.termux-terminal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #44475a;
+    margin-bottom: 5px;
+}
 
-If your plugin does not need CSS, delete this file.
+.termux-terminal-title {
+    font-weight: bold;
+    color: #bd93f9;
+}
 
-*/
+.termux-terminal-output {
+    flex-grow: 1;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    padding-bottom: 10px;
+}
+
+.termux-terminal-line {
+    margin-bottom: 2px;
+}
+
+.termux-terminal-line.command {
+    color: #f1fa8c; /* Yellowish for command */
+    font-weight: bold;
+}
+
+.termux-terminal-line.output {
+    color: #f8f8f2; /* Whiteish */
+}
+
+.termux-terminal-line.error {
+    color: #ff5555; /* Red */
+}
+
+.termux-terminal-line.system {
+    color: #6272a4; /* Blueish/Grey */
+    font-style: italic;
+}
+
+.termux-terminal-input-area {
+    display: flex;
+    align-items: center;
+    border-top: 1px solid #44475a;
+    padding-top: 5px;
+}
+
+.termux-terminal-prompt {
+    color: #50fa7b; /* Green */
+    margin-right: 5px;
+    font-weight: bold;
+}
+
+.termux-terminal-input-area input {
+    background: transparent;
+    border: none;
+    color: #f8f8f2;
+    flex-grow: 1;
+    font-family: inherit;
+    outline: none;
+}
+
+.termux-terminal-input-area input:focus {
+    box-shadow: none;
+    border: none;
+    outline: none !important;
+}
