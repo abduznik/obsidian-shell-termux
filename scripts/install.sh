@@ -23,7 +23,8 @@ chmod 600 ~/.obsidian_termux_token
 
 # 4. Enable Auto-Start
 echo "Configuring auto-start in ~/.bashrc..."
-
+#Added Touch to make sure that bashrc will be created if it doesnt exist
+touch ~/.bashrc
 # Remove old entries to prevent duplicates or wrong paths
 sed -i '/# Auto-start Obsidian Bridge/,/fi/d' ~/.bashrc
 
