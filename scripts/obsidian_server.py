@@ -187,7 +187,7 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
         except subprocess.TimeoutExpired:
             self.send_response(200)
             self.end_headers()
-            error_msg = "Command timed out (15s). Note: Interactive commands are NOT supported."
+            error_msg = "Command timed out (30s). Note: Interactive commands are NOT supported."
             self.wfile.write(json.dumps({"output": error_msg, "cwd": cwd}).encode('utf-8'))
             
         except Exception as e:
