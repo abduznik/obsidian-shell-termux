@@ -3,10 +3,7 @@ import TermuxBridgePlugin from './main';
 
 export const TERMUX_TERMINAL_VIEW_TYPE = 'termux-terminal-view';
 
-interface TermuxResponse {
-    output: string;
-    cwd?: string;
-}
+import { TermuxResponse } from "./types";
 
 export class TermuxTerminalView extends ItemView {
     plugin: TermuxBridgePlugin;
@@ -51,6 +48,13 @@ export class TermuxTerminalView extends ItemView {
                     await this.executeCommand('__RESTART__');
                     this.appendOutput("Server restarting...\n", 'system');
                 })();
+            });
+
+        new ButtonComponent(header)
+            .setIcon('trash')
+            .setTooltip('Clear terminal')
+            .onClick(() => {
+                this.outputContainer.empty();
             });
 
         this.outputContainer = container.createDiv({ cls: 'termux-terminal-output' });

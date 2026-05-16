@@ -1,0 +1,81 @@
+name: Continuous Delivery
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Force release even if version hasn't changed"
+        type: boolean
+        default: false
+      release_notes:
+        description: "Optional release notes"
+        required: false
+        type: string
+
+jobs:
+  check-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Get Versions
+        id: versions
+        run: |
+          # Get version from manifest.json
+          CURRENT_VERSION=$(node -p "require('./manifest.json').version")
+          echo "VERSION=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          
+          # Get latest tag from GitHub Releases
+          LATEST_TAG=$(gh release list --limit 1 | awk 'NR>1 {print $3}')
+          echo "LATEST_TAG=${LATEST_TAG:-0.0.0}" >> $GITHUB_OUTPUT
+
+      - name: Check Eligibility
+        id: check
+        run: |
+          SHOULD_RELEASE="false"
+          if [ "${{ steps.versions.outputs.VERSION }}" != "${{ steps.versions.outputs.LATEST_TAG }}" ] || [ "${{ inputs.force }}" == "true" ]; then
+            SHOULD_RELEASE="true"
+          fi
+          echo "SHOULD_RELEASE=$SHOULD_RELEASE" >> $GITHUB_OUTPUT
+
+      - name: Setup & Build
+        if: steps.check.outputs.SHOULD_RELEASE == 'true'
+        run: |
+          npm install
+          npm run build
+
+      - name: Attest Build Provenance
+        if: steps.check.outputs.SHOULD_RELEASE == 'true'
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: |
+            main.js
+            manifest.json
+            styles.css
+
+      - name: Create Release
+        if: steps.check.outputs.SHOULD_RELEASE == 'true'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.versions.outputs.VERSION }}
+          name: ${{ steps.versions.outputs.VERSION }}${{ inputs.release_notes && format(' - {0}', inputs.release_notes) || '' }}
+          body: |
+            Automated release for version ${{ steps.versions.outputs.VERSION }}
+            
+            ${{ inputs.release_notes || 'Internal maintenance and updates.' }}
+          files: |
+            main.js
+            manifest.json
+            styles.css
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -3,10 +3,7 @@ import { DEFAULT_SETTINGS, TermuxBridgeSettings, TermuxBridgeSettingTab } from "
 import { TermuxTerminalView, TERMUX_TERMINAL_VIEW_TYPE } from "./TermuxTerminalView";
 import { TermuxEditorExtensions } from "./editor_plugin";
 
-interface TermuxResponse {
-    output: string;
-    cwd?: string;
-}
+import { TermuxResponse } from "./types";
 
 export default class TermuxBridgePlugin extends Plugin {
     settings: TermuxBridgeSettings;
@@ -25,14 +22,30 @@ export default class TermuxBridgePlugin extends Plugin {
         );
 
         this.addRibbonIcon('terminal-square', 'Open terminal', () => {
-            void this.activateView();
+            if (this.ensureSettingsValid()) {
+                void this.activateView();
+            }
         });
 
+        this.registerCommands();
+    }
+
+    private ensureSettingsValid(): boolean {
+        if (!this.settings.serverPort || !this.settings.serverToken) {
+            new Notice('Please configure port and token in settings.');
+            return false;
+        }
+        return true;
+    }
+
+    private registerCommands() {
         this.addCommand({
             id: 'open-termux-terminal',
             name: 'Open terminal',
             callback: () => {
-                void this.activateView();
+                if (this.ensureSettingsValid()) {
+                    void this.activateView();
+                }
             }
         });
 
@@ -40,15 +53,19 @@ export default class TermuxBridgePlugin extends Plugin {
             id: 'run-termux',
             name: 'Execute code',
             callback: () => {
-                new TermuxCommandModal(this.app, this, false).open();
+                if (this.ensureSettingsValid()) {
+                    new TermuxCommandModal(this.app, this, false).open();
+                }
             }
         });
 
         this.addCommand({
             id: 'run-termux-paste',
             name: 'Execute code and paste output',
-            editorCallback: (editor: Editor, view: MarkdownView) => { 
-                new TermuxCommandModal(this.app, this, true, editor).open();
+            editorCallback: (editor: Editor, _view: MarkdownView) => { 
+                if (this.ensureSettingsValid()) {
+                    new TermuxCommandModal(this.app, this, true, editor).open();
+                }
             }
         });
     }
@@ -150,6 +167,8 @@ export default class TermuxBridgePlugin extends Plugin {
     }
 
     async testConnection() {
+        if (!this.ensureSettingsValid()) return;
+        
         const port = this.settings.serverPort;
         const url = `http://127.0.0.1:${port}/`;
         const testCommand = 'echo "Connection Successful"';
