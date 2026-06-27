@@ -1,3 +1,9 @@
+## Support This Project
+
+> **All projects made with passion** 💙
+
+[![Sponsor me](https://img.shields.io/badge/❤️%20Sponsor-GitHub-red?style=for-the-badge)](https://github.com/sponsors/abduznik)
+
 # Obsidian Termux Bridge
 
 A plugin that connects Obsidian to Termux via a local HTTP bridge, bypassing Android Intent restrictions. It allows you to run shell commands on your Android device directly from Obsidian.
